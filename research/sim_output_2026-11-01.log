@@ -1,0 +1,36 @@
+=== Max profitable bid grid cap B_MAX = 0.9512 ===
+
+Baseline (all 6 fully independent, symmetric latency 0.4s):
+  per-capita payoff = 0.00063, avg winning bid (miner revenue) = 0.73579
+
+Swarm sweep (n_total=6, outside latency mean=0.4s, swarm latency=0.4s):
+  k n_outside  win_rate  miner_revenue  per-member payoff  vs baseline
+  1         5    0.0024        0.73326            0.00216        3.400x
+  2         4    0.0050        0.73283            0.00206        3.250x
+  3         3    0.0132        0.72392            0.00353        5.568x
+  4         2    0.0461        0.70850            0.00896       14.134x
+  5         1    0.1916        0.66290            0.03008       47.433x
+(prediction iii check: miner revenue should fall as k grows; baseline k=0-equivalent miner revenue = 0.73579)
+
+=== Prediction (ii): gap vs outside-competitor latency (k=3 swarm, sweep outside latency) ===
+ outside_lat  swarm_payoff/member  baseline_payoff    ratio
+        0.05              0.00008          0.00003    2.637x
+        0.10              0.00028          0.00001   19.516x
+        0.20              0.00041          0.00023    1.737x
+        0.40              0.00294          0.00053    5.492x
+        0.80              0.01447          0.00149    9.680x
+        1.60              0.04109          0.00422    9.735x
+
+=== Recalibrated run (real-data light pass, see realdata_calibration.md) ===
+delta=0.1s (paper's own Fig.14 latency parameter, close to the 0.031-0.055s real
+response gaps in Fig.2's transcribed auction); increments sampled from the real
+Fig.2 consecutive-step ratios {0.1454, 0.1477, 0.32} instead of fixed 12.5%.
+
+Recalibrated baseline: per-capita payoff = 0.00004, miner revenue = 0.92910
+
+  k n_outside  win_rate  miner_revenue  per-member payoff vs recal. baseline
+  1         5    0.0004        0.92974            0.00037              8.744x
+  2         4    0.0013        0.92279            0.00053             12.457x
+  3         3    0.0039        0.91847            0.00096             22.623x
+  4         2    0.0131        0.90718            0.00241             56.752x
+  5         1    0.0457        0.89238            0.00672            157.874x

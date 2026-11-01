@@ -1,20 +1,41 @@
-# Swarm PGA simulation results (2026-11-01)
+# Swarm PGA simulation results (2026-11-01, updated: real-data calibration + a stopping-rule fix)
 
-Ran `research/swarm_pga_sim.py` against the three pre-registered predictions in `research/swarm_pga_model.md` §4. n_total=6, outside-competitor latency mean 0.4s (paper's measured figure), swarm's effective bidder same latency class (fair test, no speed advantage assumed — isolates the pure coordination effect).
+## Correction from the first pass (same day)
+While adding real-data calibration, found and fixed a real bug: the original escalation loop had a bidder **skip its turn entirely** once a minimum-increment raise would exceed the profitability cap `B_MAX`, instead of bidding up to the max it could still profitably pay. Real profit-maximizing bidders don't just give up at an awkward in-between point — they bid their willingness-to-pay ceiling, matching the paper's own Observation 4 stopping rule ("stop raising once a further raise is no longer profitable"). Fixed to clip-and-bid-to-cap. **This changes the numbers below from what was committed earlier the same day** — reported here, not silently overwritten.
 
-| Prediction | Result | Verdict |
-|---|---|---|
-| (i) per-member swarm payoff ≥ independent payoff, gap widens in k | 2.9x at k=1 (degenerate, no real coordination) rising monotonically to 43.8x at k=5 | **Confirmed, strongly monotone** |
-| (iii) miner revenue falls as k grows | 0.733 → 0.730 → 0.724 → 0.709 → 0.663 (baseline 0.736), monotone decreasing | **Confirmed, strongly monotone** |
-| (ii) gap shrinks toward 0 as outside latency → 0 | ratio 1.98x at lat=0.05 (lowest) vs 9.30x at lat=1.60 (highest) — directionally consistent at the extremes, but non-monotone through the middle (0.10→9.76x, 0.20→1.24x) | **Directionally consistent, not cleanly confirmed** — likely Monte Carlo noise from low win-counts at low latency (8,000 trials, win probabilities in the 1e-4 to 1e-3 range at the low end); needs more trials to resolve, not re-run here to stay quota-frugal |
+## Synthetic run (δ=0.4s latency, fixed 12.5% increment) — corrected
+n_total=6. Predictions from `swarm_pga_model.md` §4:
 
-## Reading
-The core claim survives: **coordinated non-competition among a subset of PGA bidders (a "swarm") captures more expected value per member than competing independently, and does so by reducing effective competition, which lowers what the auction pays to the block producer** — exactly the classical bidding-ring mechanism (McAfee & McMillan 1992), now confirmed to hold in this paper's specific continuous-time/imperfect-information/all-pay PGA structure, not just the simpler sealed-bid setting the classical theory was built for.
+| k | win_rate | miner_revenue | per-member payoff | vs baseline |
+|---|---|---|---|---|
+| baseline (no swarm) | — | 0.73579 | 0.00063 | 1.0x |
+| 1 | 0.0024 | 0.73326 | 0.00216 | 3.4x |
+| 2 | 0.0050 | 0.73283 | 0.00206 | 3.25x |
+| 3 | 0.0132 | 0.72392 | 0.00353 | 5.57x |
+| 4 | 0.0461 | 0.70850 | 0.00896 | 14.13x |
+| 5 | 0.1916 | 0.66290 | 0.03008 | 47.43x |
 
-This is **not** a novel economic result (bidding rings are old theory) and it is **not** evidence that building such a swarm is advisable in practice — see caveats.
+- **(i) confirmed, strongly monotone**: 3.4x → 47.4x as k goes 1→5.
+- **(iii) confirmed, monotone**: miner revenue falls 0.736 → 0.663 as k grows.
+- **(ii) still only directionally consistent**, not clean (see the latency sweep in `sim_output_2026-11-01.log`) — unchanged conclusion from the first pass, not re-litigated here.
 
-## Caveats (read before acting on this)
-1. **Simulation simplification**: the auction is resolved via round-based reactive escalation rather than a true continuous-time event queue; this should converge to the same terminal winner as the paper's continuous model (bids are monotone and bounded, no cycling), but was not formally proven equivalent here — flagged, not fixed, given quota constraints.
-2. **Prediction (ii) unresolved** at this sample size — report it as such, do not claim the latency-amplification mechanic is confirmed.
-3. **The model assumes credible internal swarm enforcement** (grim-trigger) is costless and perfectly effective. Real coordination among independent trading-strategy agents has implementation cost, trust risk, and detection risk (observers can infer coordinated non-competition from on-chain bid patterns, same as cartel detection in real auction markets) — none of that friction is in the simulation.
-4. **This is synthetic-market research**, matching the repo's CLAUDE.md scope: a simulated auction with synthetic agents, not a bot deployed against real PGA participants on mainnet. It demonstrates *why* a coordinating group of agents captures more value in this game structure, which is directly useful for (a) understanding the security externality (lower miner/builder revenue, i.e. a concrete mechanism for the "MEV subsidizes forking attacks" argument — see `ethereum_architecture_security_survey.md`), and (b) deciding whether to pursue this further at all, which is a decision for the user, not something to proceed on by default.
+## Real-data-calibrated run (δ=0.1s, real empirical increments {14.5%, 14.8%, 32%})
+Calibration source: the paper's own Fig. 2 transcribed real auction — see `realdata_calibration.md`. n=3-4 real data points, explicitly a light sanity check, not a powered calibration.
+
+| k | win_rate | miner_revenue | per-member payoff | vs recal. baseline |
+|---|---|---|---|---|
+| baseline | — | 0.92910 | 0.00004 | 1.0x |
+| 1 | 0.0004 | 0.92974 | 0.00037 | 8.7x |
+| 2 | 0.0013 | 0.92279 | 0.00053 | 12.5x |
+| 3 | 0.0039 | 0.91847 | 0.00096 | 22.6x |
+| 4 | 0.0131 | 0.90718 | 0.00241 | 56.8x |
+| 5 | 0.0457 | 0.89238 | 0.00672 | 157.9x |
+
+**Read with the right caution:** the ratios look dramatic (up to 158x) mainly because real-world latency is much faster than the original synthetic guess, so independent competitors compete the surplus down to almost nothing (baseline payoff 0.00004 — tiny in absolute terms). The swarm's per-member payoff is *also* tiny in absolute terms (0.00672 at k=5) — it's "much bigger than almost nothing," not "large." The qualitatively real finding is: **with fast real-world reaction times, the auction becomes close to fully competitive for independent bidders (near-zero surplus), and coordination is the main remaining way to capture any surplus at all** — a sharper, more honest version of the original claim, not just a bigger number.
+
+Miner revenue is also higher throughout (0.89-0.93 vs 0.66-0.74 synthetic) — faster real latency lets bids escalate further before the block is mined, consistent with the paper's own observation that the gas-trend chart (Fig. 8) shows costs rising as the market matured and latencies fell.
+
+## What this is and isn't
+- **Is**: a light, honest real-data sanity check and parameter correction on a purely retrospective/formal model. No live bidding, no mainnet interaction, no agents deployed anywhere.
+- **Isn't**: a powered empirical study (n=3-4 real data points from one auction) or evidence that deploying a real coordinating swarm is advisable — see `CLAUDE.md`'s destination-objective note; that remains out of scope for this repo as built.
+- **Full historical dataset** (hundreds of real PGA auctions, the paper's own 9-month collection) would resolve this properly; not pursued here to keep this a light pass. Noted as the natural next step if the user wants it.

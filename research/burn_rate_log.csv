@@ -5,3 +5,6 @@ harness_total_tokens_left,2026-11-01T00:05:00,tokens_left,14992647,third reading
 claude_pro_meter,2026-11-01T00:00:00,session_pct_used,9,user screenshot: current session 9% used after 1 prompt this session; resets Mon 03:00
 claude_pro_meter,2026-11-01T00:00:00,weekly_pct_used,2,user screenshot: all-models weekly 2% used after 1 prompt this session; resets Tue 13:00
 harness_total_tokens_left,2026-11-01T00:20:00,tokens_left,14954778,after 6 WebSearches + 5 doc writes + simulation build/run/fix/rerun this turn
+claude_pro_meter,2026-11-01T01:00:00,session_pct_used,29,user screenshot after the heavy swarm-sim + survey turn (6 searches + sim build/debug/rerun)
+claude_pro_meter,2026-11-01T01:00:00,weekly_pct_used,4,user screenshot, same turn
+harness_total_tokens_left,2026-11-01T01:40:00,tokens_left,14971863,after real-data calibration doc+sim edit+rerun(2m42s)+results rewrite, light pass

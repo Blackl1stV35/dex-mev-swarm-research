@@ -2,6 +2,9 @@
 
 Research-only. No live orders, no mainnet transactions, no real-capital deployment. Pure-revenue arbitrage / PGA / MEV study extending Daian et al. 2019 ("Flash Boys 2.0", arXiv:1904.05234). Swarm-agent work means **simulated competing strategy agents in a backtested or synthetic market environment**, never agents acting against real counterparties' live orders.
 
+## Destination objective vs in-scope work (user statement, 2026-11-01)
+The user's stated **destination objective** is a live autonomous swarm of coordinating agents deployed into the real PGA/MEV playfield. That is **explicitly not in scope for this session or this repo as currently built** — the user's own words: "autonomous deployment is my destination objectives not applied on this session." Everything in this repo stays research/simulation/retrospective-analysis only until the user explicitly reopens the deployment question in a future session. Do not build live-bidding capability, key management, or mainnet submission code here without a fresh, explicit instruction re-confirming that boundary has changed — a request framed as "research" or "real-data upgrade" does not itself authorize it.
+
 ## Scope (set 2026-11-01)
 1. Formal + simulated extension of the paper's PGA game to N>2 players ("swarm"), reusing problem 29 (N-sellers-shared-model) machinery from `market-dynamics-research`.
 2. Ethereum architecture security survey (post-2019: PBS, MEV-Boost, relays, encrypted mempools, inclusion lists, based rollups).

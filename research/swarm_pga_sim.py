@@ -45,10 +45,14 @@ def max_profitable_bid():
 B_MAX = max_profitable_bid()
 
 
-def run_auction(n_outside, swarm_latency, outside_latency_mean, rng):
+def run_auction(n_outside, swarm_latency, outside_latency_mean, rng, iota_choices=None):
     """One PGA instance: 1 swarm bidder (if swarm active) vs n_outside independent
     competitors, OR (if swarm_latency is None) n_outside+1 fully independent competitors
-    for the baseline-no-swarm case. Returns (winner_is_swarm, winning_bid, n_bidders)."""
+    for the baseline-no-swarm case. Returns (winner_is_swarm, winning_bid, n_bidders).
+
+    iota_choices: if given, each bid's increment is drawn from this set (real-data
+    calibration mode, see realdata_calibration.md); if None, fixed IOTA (original
+    synthetic mode)."""
     n_bidders = n_outside + (1 if swarm_latency is not None else 0)
     latencies = rng.exponential(outside_latency_mean, size=n_outside)
     if swarm_latency is not None:
@@ -83,8 +87,9 @@ def run_auction(n_outside, swarm_latency, outside_latency_mean, rng):
             resp_time = last_move_time[i] + latencies[i]
             if resp_time >= t_end:
                 continue
-            nxt = max(best * (1 + IOTA), S)
-            if nxt > B_MAX:
+            iota = rng.choice(iota_choices) if iota_choices is not None else IOTA
+            nxt = min(max(best * (1 + iota), S), B_MAX)
+            if nxt <= cur_bid[i]:
                 continue
             cur_bid[i] = nxt
             last_move_time[i] = resp_time
@@ -93,7 +98,7 @@ def run_auction(n_outside, swarm_latency, outside_latency_mean, rng):
     return bool(is_swarm[win_idx]), float(cur_bid[win_idx]), n_bidders
 
 
-def sweep_k(n_total, outside_latency_mean, swarm_latency, n_trials=N_TRIALS):
+def sweep_k(n_total, outside_latency_mean, swarm_latency, n_trials=N_TRIALS, iota_choices=None):
     """all_winning_bids tracks the MINER's revenue for every auction regardless of winner
     identity (tests prediction iii: total market revenue). swarm_win_bids tracks revenue
     only on the subset of auctions the swarm wins (used for swarm per-member payoff)."""
@@ -104,7 +109,8 @@ def sweep_k(n_total, outside_latency_mean, swarm_latency, n_trials=N_TRIALS):
         all_winning_bids = np.empty(n_trials)
         swarm_win_bids = []
         for t in range(n_trials):
-            won, bid, _ = run_auction(n_outside, swarm_latency, outside_latency_mean, RNG)
+            won, bid, _ = run_auction(n_outside, swarm_latency, outside_latency_mean, RNG,
+                                       iota_choices=iota_choices)
             all_winning_bids[t] = bid
             if won:
                 wins += 1
@@ -119,13 +125,14 @@ def sweep_k(n_total, outside_latency_mean, swarm_latency, n_trials=N_TRIALS):
     return rows
 
 
-def independent_baseline(n_total, outside_latency_mean, n_trials=N_TRIALS):
+def independent_baseline(n_total, outside_latency_mean, n_trials=N_TRIALS, iota_choices=None):
     """No swarm: n_total fully independent competitors, uniform latency. Per-capita payoff
     and market revenue, for comparison at k=1 (every agent 'independent')."""
     wins_by_agent = np.zeros(n_total)
     revenue = []
     for _ in range(n_trials):
-        won, bid, nb = run_auction(n_total - 1, outside_latency_mean, outside_latency_mean, RNG)
+        won, bid, nb = run_auction(n_total - 1, outside_latency_mean, outside_latency_mean, RNG,
+                                    iota_choices=iota_choices)
         # here "swarm" is just agent n_total-1 playing the identical strategy as everyone else
         revenue.append(bid)
         if won:
@@ -138,7 +145,11 @@ def independent_baseline(n_total, outside_latency_mean, n_trials=N_TRIALS):
 
 if __name__ == "__main__":
     N_TOTAL = 6
-    OUTSIDE_LAT_MEAN = 0.4   # seconds, matches paper's measured ~0.4s latency
+    # NOTE (corrected 2026-11-01, see realdata_calibration.md): 0.4s is the paper's Fig.14
+    # mean GAME-INTERVAL length t, not its latency parameter. Kept here as the original
+    # synthetic-mode run for comparison; the recalibrated run below uses the paper's own
+    # stated latency delta=0.1s and real empirical bid increments instead.
+    OUTSIDE_LAT_MEAN = 0.4
     SWARM_LAT = 0.4          # swarm's effective bidder has the SAME latency class (fair test)
 
     print(f"=== Max profitable bid grid cap B_MAX = {B_MAX:.4f} ===\n")
@@ -164,3 +175,18 @@ if __name__ == "__main__":
         bp, _ = independent_baseline(N_TOTAL, lat, n_trials=8000)
         ratio = k3["swarm_payoff_per_member"] / bp if bp > 0 else float("nan")
         print(f"{lat:>12.2f} {k3['swarm_payoff_per_member']:>20.5f} {bp:>16.5f} {ratio:>8.3f}x")
+
+    print("\n=== Recalibrated run (real-data light pass, see realdata_calibration.md) ===")
+    print("delta=0.1s (paper's own Fig.14 latency parameter, close to the 0.031-0.055s real")
+    print("response gaps in Fig.2's transcribed auction); increments sampled from the real")
+    print("Fig.2 consecutive-step ratios {0.1454, 0.1477, 0.32} instead of fixed 12.5%.\n")
+    REAL_LAT = 0.1
+    REAL_IOTA_CHOICES = [0.1454, 0.1477, 0.32]
+    rbase_payoff, rbase_revenue = independent_baseline(N_TOTAL, REAL_LAT, iota_choices=REAL_IOTA_CHOICES)
+    print(f"Recalibrated baseline: per-capita payoff = {rbase_payoff:.5f}, miner revenue = {rbase_revenue:.5f}\n")
+    print(f"{'k':>3} {'n_outside':>9} {'win_rate':>9} {'miner_revenue':>14} {'per-member payoff':>18} {'vs recal. baseline':>18}")
+    rrows = sweep_k(N_TOTAL, REAL_LAT, REAL_LAT, iota_choices=REAL_IOTA_CHOICES)
+    for r in rrows:
+        ratio = r["swarm_payoff_per_member"] / rbase_payoff if rbase_payoff > 0 else float("nan")
+        print(f"{r['k']:>3} {r['n_outside']:>9} {r['win_rate']:>9.4f} {r['avg_miner_revenue']:>14.5f} "
+              f"{r['swarm_payoff_per_member']:>18.5f} {ratio:>18.3f}x")
