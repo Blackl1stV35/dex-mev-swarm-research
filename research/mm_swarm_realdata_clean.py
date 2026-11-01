@@ -117,10 +117,16 @@ for e in episodes:
     fees_pre = float(hourly_fees[pre_lo:pre_hi].sum()) if pre_hi > pre_lo else float("nan")
     yield_during = fees_during / L_during if L_during > 0 else float("nan")
     yield_pre = fees_pre / L_pre if L_pre and L_pre > 0 else float("nan")
+    n_swaps_during = int(sel_during.sum())
+    n_swaps_pre = int(sel_pre.sum())
     r = dict(
         date=str(np.datetime64(int(ts[0] + e * 3600), "s")),
         rel_liq_pre=rel_liq_pre, rel_liq_during=rel_liq_during,
         liquidity_fled_relative=bool(rel_liq_during < rel_liq_pre * 0.9) if rel_liq_pre == rel_liq_pre else None,
+        L_pre=L_pre, L_during=L_during,
+        fees_usd_pre=fees_pre, fees_usd_during=fees_during,
+        n_swaps_pre=n_swaps_pre, n_swaps_during=n_swaps_during,
+        fee_revenue_collapsed=bool(fees_during < fees_pre * 0.5) if fees_pre == fees_pre and fees_pre > 0 else None,
         fee_yield_per_unit_capital_pre=yield_pre, fee_yield_per_unit_capital_during=yield_during,
         yield_rose_when_liquidity_fled=bool(yield_during > yield_pre) if yield_pre == yield_pre and yield_pre > 0 else None,
         median_price_impact_pre=impact_pre, median_price_impact_during=impact_during,
@@ -131,6 +137,8 @@ for e in episodes:
           f"(fled={r['liquidity_fled_relative']}) | fee-yield/unit pre={yield_pre:.3e} during={yield_during:.3e} "
           f"(rose={r['yield_rose_when_liquidity_fled']}) | trader impact pre={impact_pre:.3e} during={impact_during:.3e} "
           f"(rose={r['trader_impact_rose']})")
+    print(f"      absolute fee revenue (24h, USD): pre=${fees_pre:,.0f} during=${fees_during:,.0f} "
+          f"(collapsed={r['fee_revenue_collapsed']}) | swap count: pre={n_swaps_pre} during={n_swaps_during}")
 
 n_fled = sum(1 for r in results if r["liquidity_fled_relative"])
 n_yield_rose = sum(1 for r in results if r["yield_rose_when_liquidity_fled"])
