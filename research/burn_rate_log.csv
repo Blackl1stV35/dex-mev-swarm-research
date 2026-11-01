@@ -15,3 +15,4 @@ harness_total_tokens_left,2026-11-01T04:00:00,tokens_left,14972011,after real-da
 harness_total_tokens_left,2026-11-01T05:00:00,tokens_left,14975972,after proper clean test (2 iterations, 3.7s+4.8s runtime, model correction found+fixed)
 harness_total_tokens_left,2026-11-02T00:00:00,tokens_left,14986400,after game-theoretic validation check (one quick rerun ~4s, mostly analysis)
 harness_total_tokens_left,2026-11-02T01:00:00,tokens_left,14978250,after option-B full-range LP backtest (TVL derivation, 8.7s run, chart label fix+rerun)
+harness_total_tokens_left,2026-11-02T02:00:00,tokens_left,14958411,after option-B strategy PDF build (drawdown calc, gas search+model, PDF build+2 bugfixes, render verify)
