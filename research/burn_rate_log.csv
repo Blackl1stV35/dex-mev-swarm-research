@@ -1,0 +1,7 @@
+source,logged_at_utc,metric,value,note
+harness_total_tokens_left,2026-11-01T00:00:00,tokens_left,15000000,first reading this session segment (post session-closed)
+harness_total_tokens_left,2026-11-01T00:00:00,tokens_left,15000000,second reading same segment (safety-classifier-stopped turn)
+harness_total_tokens_left,2026-11-01T00:05:00,tokens_left,14992647,third reading (after repo-setup + CLAUDE.md turn)
+claude_pro_meter,2026-11-01T00:00:00,session_pct_used,9,user screenshot: current session 9% used after 1 prompt this session; resets Mon 03:00
+claude_pro_meter,2026-11-01T00:00:00,weekly_pct_used,2,user screenshot: all-models weekly 2% used after 1 prompt this session; resets Tue 13:00
+harness_total_tokens_left,2026-11-01T00:20:00,tokens_left,14954778,after 6 WebSearches + 5 doc writes + simulation build/run/fix/rerun this turn

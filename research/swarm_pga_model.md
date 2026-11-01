@@ -1,0 +1,25 @@
+# N-player swarm extension of the PGA model (formal part, before any simulation)
+
+Base: Daian et al. 2019, Section V (PGA model) and Theorem 1 (2-player grim-trigger Nash equilibrium). The paper explicitly restricts to n=2 "for simplicity" and states the model "can be generalized to any n" without doing so (§V-B). This is the crack-math-first step before building the simulation.
+
+## 1. What "swarming to outperform the market" actually means, formally
+A swarm is **not** a faster individual bidder — latency optimization (the paper's §VI-B "latency wars") already covers that and has diminishing returns bounded by network propagation. The real lever a coordinated multi-agent group has that a single bot does not is **internal non-competition**: k agents who would otherwise bid against each other in the same PGA instead agree ex ante to let one designated member bid, split the resulting profit, and use the group's combined capital/signal advantage only against the *outside* competitors.
+
+This is the auction-theory bidding-ring / cartel problem (classical reference: McAfee & McMillan 1992, "Bidding Rings," American Economic Review), specialized to the paper's PGA setting: continuous time, imperfect (latency-delayed) information, all-pay cost structure for losers.
+
+## 2. Setup
+- n total PGA participants for a given pure-revenue opportunity of value $r; k of them form a swarm S (coordinated), the remaining n-k are independent competitors (as in the paper's model, each with its own latency Δᵢ).
+- Swarm internal rule: grim-trigger cooperative strategy exactly as the paper's Fig. 11, but applied *within* S only — swarm members take turns being the active bidder at agreed intervals V[i] with agreed bid schedule W[i]; any internal deviation triggers 1+c counter-bidding, same as the paper's Observation 3/Lemma 1 mechanics, because that machinery is already general in the bidder's identity, not n=2-specific.
+- Against the outside market, the swarm's active bidder for a given opportunity plays the paper's single-player strategy (blind raising / reactive counterbidding) against whichever of the (n-k) competitors it faces, exactly as the original 2-player model — i.e. **the swarm reduces an n-player auction to an effective (n-k+1)-player auction from the perspective of price competition**, while internally redistributing the swarm's share of the $1 payoff among k members by a pre-agreed split rule.
+
+## 3. Proposition (swarm dominance condition)
+Let $V_k$ = expected payoff per swarm member under size-k coordination, $V_1$ = expected payoff for an independent competitor of identical latency/capital. Classical bidding-ring results (McAfee-McMillan) give, for a first-price-flavored all-pay auction with i.i.d. valuations: expected ring-member surplus is strictly increasing in k and strictly exceeds the no-ring competitive payoff for k ≥ 2, **provided**:
+(a) the ring can credibly internally enforce non-competition (grim-trigger, as above — this is the part the paper's own machinery already proves holds within a 2-party sub-coalition, and composes for k-party by the same backward-induction argument applied pairwise to any deviating member against the rest of the ring acting as punisher);
+(b) outside competitors cannot detect and react to the ring's reduced internal competition faster than the ring reduces its effective bid — i.e. the ring's winning bid against outsiders can stay as low as the (n-k+1)-th order statistic of valuations rather than the n-th, which requires outside bidders' latency Δ_outside not small enough to arbitrage the gap (same latency-amplification mechanic as the paper's Observation 2, now protecting the ring rather than a single reactive bidder).
+
+**This is not a new theorem** — it is the paper's own grim-trigger proof machinery (which is agent-identity-agnostic) composed with classical auction cartel theory. The honest open question, not resolved by citation alone, is the **quantitative** crossover: how large does k need to be, and how small does outside latency need to be, for the swarm to beat n independent competitive agents in *this specific* continuous-time, imperfect-information, all-pay PGA structure (not the simpler sealed-bid setting McAfee-McMillan analyze). That crossover is what the simulation in `swarm_pga_sim.py` is built to measure, not assume.
+
+## 4. Falsifiable prediction for the simulation
+If swarming genuinely outperforms, we expect: (i) per-member swarm payoff ≥ independent-competitor payoff for the same latency class, with the gap widening in k; (ii) the gap should **shrink toward zero** as outside-competitor latency Δ_outside → 0 (per condition (b)); (iii) total market revenue to miners should **fall** as k grows (fewer effective bidders → auction theory predicts lower winning bids), which is the externality this creates for the rest of the system — directly relevant to the security-perspective question in `ethereum_architecture_security_survey.md`.
+
+If (i) fails, or (ii)/(iii) don't hold directionally, the swarm-dominance claim is refuted for this setting and that is the finding to report, not something to paper over.
