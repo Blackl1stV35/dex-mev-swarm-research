@@ -1,0 +1,80 @@
+{
+  "n_swaps": 11599763,
+  "detected_spikes": [
+    {
+      "hour_idx": 349,
+      "date": "2021-05-20T11:15:01",
+      "vol": 0.07412627702878867
+    },
+    {
+      "hour_idx": 341,
+      "date": "2021-05-20T03:15:01",
+      "vol": 0.07383613306311747
+    },
+    {
+      "hour_idx": 343,
+      "date": "2021-05-20T05:15:01",
+      "vol": 0.07376475006476534
+    },
+    {
+      "hour_idx": 344,
+      "date": "2021-05-20T06:15:01",
+      "vol": 0.07365930174925857
+    },
+    {
+      "hour_idx": 338,
+      "date": "2021-05-20T00:15:01",
+      "vol": 0.0735794864035388
+    }
+  ],
+  "mechanism_test": [
+    {
+      "spike_date": "2021-05-20T11:15:01",
+      "liq_pre": 4329243396837033.0,
+      "liq_during": 1.3604652804504112e+16,
+      "liq_change_pct": 214.25012542477378,
+      "median_price_impact_per_unit_spike": 0.00781561845386175
+    },
+    {
+      "spike_date": "2021-05-20T03:15:01",
+      "liq_pre": 5.276183805183174e+16,
+      "liq_during": 1.2889274129730556e+16,
+      "liq_change_pct": -75.57083944447027,
+      "median_price_impact_per_unit_spike": 0.008069039797349548
+    },
+    {
+      "spike_date": "2021-05-20T05:15:01",
+      "liq_pre": 5.276183805183174e+16,
+      "liq_during": 1.2889274129730556e+16,
+      "liq_change_pct": -75.57083944447027,
+      "median_price_impact_per_unit_spike": 0.008039474145355666
+    }
+  ],
+  "calm_baseline": {
+    "median_liq": 1.9403641085644263e+19,
+    "median_price_impact": 5.3439670990583514e-06
+  },
+  "p1_counterfactual_bounded": [
+    {
+      "spike_date": "2021-05-20T11:15:01",
+      "log_return_over_window": 0.10413622431504234,
+      "il_proxy_realized_depth": 147533660373943.3,
+      "il_proxy_floor_depth": 46947844547244.4,
+      "note": "IL proxy only; fee-revenue side of the trade-off not modeled in this bounded pass -- a real P1 test needs LP-level data this pool-aggregate dataset doesn't have"
+    },
+    {
+      "spike_date": "2021-05-20T03:15:01",
+      "log_return_over_window": 0.010921209811432466,
+      "il_proxy_realized_depth": 1537340121480.5781,
+      "il_proxy_floor_depth": 6293053410435.707,
+      "note": "IL proxy only; fee-revenue side of the trade-off not modeled in this bounded pass -- a real P1 test needs LP-level data this pool-aggregate dataset doesn't have"
+    },
+    {
+      "spike_date": "2021-05-20T05:15:01",
+      "log_return_over_window": 0.05299574222852363,
+      "il_proxy_realized_depth": 36200154028201.34,
+      "il_proxy_floor_depth": 148184191372090.2,
+      "note": "IL proxy only; fee-revenue side of the trade-off not modeled in this bounded pass -- a real P1 test needs LP-level data this pool-aggregate dataset doesn't have"
+    }
+  ]
+}
