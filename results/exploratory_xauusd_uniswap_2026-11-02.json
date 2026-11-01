@@ -1,0 +1,10 @@
+{
+  "n_days": 1380,
+  "start": "2021-05-06",
+  "end": "2026-09-08",
+  "corr_abs_return_vs_pool_abs_return": 0.09989367967906389,
+  "corr_return_vs_pool_return": 0.13189402583932336,
+  "corr_xau_absret_vs_log_uni_volume": -0.06633547612530849,
+  "corr_xau_absret_vs_log_uni_swapcount": 0.12181074515710398,
+  "note": "exploratory contemporaneous correlation only; no lag structure, no point-in-time audit, no validation split -- not a predictive or tradeable claim"
+}
