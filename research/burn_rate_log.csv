@@ -12,3 +12,4 @@ harness_total_tokens_left,2026-11-01T02:00:00,tokens_left,14983086,after mm_swar
 claude_pro_meter,2026-11-01T03:00:00,session_pct_used,47,user screenshot after mm_swarm_model.md turn (+18pts from a light-ish turn)
 claude_pro_meter,2026-11-01T03:00:00,weekly_pct_used,7,user screenshot, same turn
 harness_total_tokens_left,2026-11-01T04:00:00,tokens_left,14972011,after real-data first pass (debug+fix+8s run) against problem-14's already-fetched Uniswap data
+harness_total_tokens_left,2026-11-01T05:00:00,tokens_left,14975972,after proper clean test (2 iterations, 3.7s+4.8s runtime, model correction found+fixed)

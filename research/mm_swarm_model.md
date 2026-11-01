@@ -18,8 +18,10 @@ Fee revenue to an LP providing share `ℓ_i(t)/L(t)` of total depth, at volume `
 
 ## 2. Swarm mechanism (the genuinely new part — not yet proven, this is what needs cracking)
 A swarm of `k` LPs pre-commits to:
-(a) a joint minimum aggregate depth floor `L_min` maintained even during a volatility spike that would make any single member want to withdraw individually, and
-(b) **pooling** fee revenue and LVR losses pro-rata across the `k` members, so no single member bears a disproportionate LVR hit for honoring the commitment (a mutual/insurance structure, not a non-competition cartel — this is the structural difference from the PGA swarm, which is why it is not automatically zero-sum: the swarm is not reducing the number of real competitors for a fixed opportunity, it is **supplying a public good** — continuous liquidity — that benefits every trader, swarm member or not).
+(a) a joint minimum aggregate depth floor `L_min` maintained even during a liquidity-crisis event that would make any single member want to withdraw individually, and
+(b) **pooling** fee revenue and LVR losses pro-rata across the `k` members, so no single member bears a disproportionate risk for honoring the commitment (a mutual/insurance structure, not a non-competition cartel — this is the structural difference from the PGA swarm, which is why it is not automatically zero-sum: the swarm is not reducing the number of real competitors for a fixed opportunity, it is **supplying a public good** — continuous liquidity — that benefits every trader, swarm member or not).
+
+**Corrected scope (2026-11-01, after the real-data clean test, `results/mm_swarm_realdata_cleantest_2026-11-01.md`):** the trigger condition is narrower than "volatility spikes." Real data shows LP flight does not occur during generic high-volatility episodes (4 of 6 real cases tested) — it occurs specifically during **systemic crypto-solvency crises** (the 2 episodes that showed flight were the real Terra/Luna and FTX collapses). The mechanism this model targets is crisis-driven liquidity flight, not ordinary price volatility. An individual LP's own impermanent loss depends on their own capital and the price move, not on other LPs' depth (corrected from an earlier draft that conflated whole-pool and individual-LP economics) — what total pool depth controls is the fee-share split among LPs who stay, which rises mechanically for stayers when others flee.
 
 ## 3. Proposition to test (pre-registered here, before any data is touched)
 Relative to `k` uncoordinated LPs each acting myopically:

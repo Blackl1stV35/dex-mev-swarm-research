@@ -1,0 +1,96 @@
+{
+  "n_swaps": 11599763,
+  "episodes": [
+    3015,
+    8917,
+    13264,
+    25794,
+    28513,
+    32879
+  ],
+  "results": [
+    {
+      "date": "2021-09-08T13:15:01",
+      "rel_liq_pre": 0.3888215551654376,
+      "rel_liq_during": 0.3902618482162489,
+      "liquidity_fled_relative": false,
+      "fee_yield_per_unit_capital_pre": 6.113623864597823e-14,
+      "fee_yield_per_unit_capital_during": 5.3454892961764346e-14,
+      "yield_rose_when_liquidity_fled": false,
+      "median_price_impact_pre": 3.260265365290534e-05,
+      "median_price_impact_during": 2.4454757054602045e-05,
+      "trader_impact_rose": false
+    },
+    {
+      "date": "2022-05-12T11:15:01",
+      "rel_liq_pre": 0.5391663942675845,
+      "rel_liq_during": 0.27266241278104075,
+      "liquidity_fled_relative": true,
+      "fee_yield_per_unit_capital_pre": 7.504329972127578e-14,
+      "fee_yield_per_unit_capital_during": 1.521052573439889e-13,
+      "yield_rose_when_liquidity_fled": true,
+      "median_price_impact_pre": 8.570804173102088e-06,
+      "median_price_impact_during": 1.4330301316447604e-05,
+      "trader_impact_rose": true
+    },
+    {
+      "date": "2022-11-09T14:15:01",
+      "rel_liq_pre": 0.6363082016278558,
+      "rel_liq_during": 0.46077853004993885,
+      "liquidity_fled_relative": true,
+      "fee_yield_per_unit_capital_pre": 6.049405105732728e-14,
+      "fee_yield_per_unit_capital_during": 1.0053545937203769e-13,
+      "yield_rose_when_liquidity_fled": true,
+      "median_price_impact_pre": 4.766081033758921e-06,
+      "median_price_impact_during": 5.9672344936867225e-06,
+      "trader_impact_rose": true
+    },
+    {
+      "date": "2024-04-14T16:15:01",
+      "rel_liq_pre": 0.7397824813997433,
+      "rel_liq_during": 1.0342660328632673,
+      "liquidity_fled_relative": false,
+      "fee_yield_per_unit_capital_pre": 4.7177906520615626e-14,
+      "fee_yield_per_unit_capital_during": 2.852442185602553e-14,
+      "yield_rose_when_liquidity_fled": false,
+      "median_price_impact_pre": 1.7280063609448875e-05,
+      "median_price_impact_during": 1.1777091074423447e-05,
+      "trader_impact_rose": false
+    },
+    {
+      "date": "2024-08-05T23:15:01",
+      "rel_liq_pre": 0.19580739809711062,
+      "rel_liq_during": 0.22503952911900335,
+      "liquidity_fled_relative": false,
+      "fee_yield_per_unit_capital_pre": 2.7940297436273145e-13,
+      "fee_yield_per_unit_capital_during": 1.31718376880483e-13,
+      "yield_rose_when_liquidity_fled": false,
+      "median_price_impact_pre": 5.613735113704437e-05,
+      "median_price_impact_during": 4.454569254169263e-05,
+      "trader_impact_rose": false
+    },
+    {
+      "date": "2025-02-03T21:15:01",
+      "rel_liq_pre": 0.44395557240053773,
+      "rel_liq_during": 0.6797171160693509,
+      "liquidity_fled_relative": false,
+      "fee_yield_per_unit_capital_pre": 1.9026847732604419e-13,
+      "fee_yield_per_unit_capital_during": 7.076259465620418e-14,
+      "yield_rose_when_liquidity_fled": false,
+      "median_price_impact_pre": 3.442595854606531e-05,
+      "median_price_impact_during": 2.342168529652734e-05,
+      "trader_impact_rose": false
+    }
+  ],
+  "n_episodes_liquidity_fled": 2,
+  "n_episodes_valid": 6,
+  "n_episodes_yield_rose": 2,
+  "n_episodes_impact_rose": 2,
+  "n_episodes_fled_and_impact_rose": 2,
+  "n_episodes_total": 6,
+  "params": {
+    "baseline_days": 30,
+    "min_separation_days": 45,
+    "top_k": 6
+  }
+}
