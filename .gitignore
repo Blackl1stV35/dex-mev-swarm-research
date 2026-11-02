@@ -1,2 +1,4 @@
+paper_trading/pool_state_log.csv
+paper_trading/nav_summary.json
+paper_trading/nav_chart.png
 __pycache__/
-*.pyc
