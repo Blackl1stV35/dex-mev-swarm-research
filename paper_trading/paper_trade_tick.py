@@ -269,7 +269,18 @@ async function render() {{
   // (Python's isoformat() emits microseconds) -- Chrome silently tolerates it, which is
   // why this passed a Chromium-only check before. Truncate to milliseconds first.
   const toDate = s => new Date(s.replace(/\.(\d{{3}})\d*/, '.$1'));
-  const labels = rows.map(r => toDate(r.ts_utc).toLocaleString(undefined, {{month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}}));
+  // Hand-format instead of toLocaleString/Intl: a real iOS device (Thai system locale)
+  // threw "The string did not match the expected pattern" here, which neither desktop
+  // WebKit nor a th-TH Playwright context reproduced -- an iOS-specific Intl/Buddhist-
+  // calendar quirk that couldn't be pinned down further from here. Removing all Intl
+  // calls removes the whole bug class rather than chasing the exact mechanism.
+  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const fmt = d => {{
+    const h = d.getHours(), hh = String(((h + 11) % 12) + 1).padStart(2, '0');
+    const mm = String(d.getMinutes()).padStart(2, '0');
+    return `${{MONTHS[d.getMonth()]}} ${{d.getDate()}}, ${{hh}}:${{mm}} ${{h < 12 ? 'AM' : 'PM'}}`;
+  }};
+  const labels = rows.map(r => fmt(toDate(r.ts_utc)));
   const common = {{
     responsive: true,
     maintainAspectRatio: false,
