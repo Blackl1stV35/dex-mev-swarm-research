@@ -195,7 +195,7 @@ def recompute_nav() -> None:
 
 
 def write_index_html(summary: dict) -> None:
-    html = f"""<!doctype html>
+    html = rf"""<!doctype html>
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="300">
 <title>Option B paper trade</title>
@@ -265,7 +265,11 @@ async function render() {{
     grid: css.getPropertyValue('--grid').trim(), ink: css.getPropertyValue('--ink').trim(),
     muted: css.getPropertyValue('--muted').trim(),
   }};
-  const labels = rows.map(r => new Date(r.ts_utc).toLocaleString(undefined, {{month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}}));
+  // Safari/WebKit's Date parser rejects ISO strings with >3 fractional-second digits
+  // (Python's isoformat() emits microseconds) -- Chrome silently tolerates it, which is
+  // why this passed a Chromium-only check before. Truncate to milliseconds first.
+  const toDate = s => new Date(s.replace(/\.(\d{{3}})\d*/, '.$1'));
+  const labels = rows.map(r => toDate(r.ts_utc).toLocaleString(undefined, {{month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}}));
   const common = {{
     responsive: true,
     maintainAspectRatio: false,
