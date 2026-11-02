@@ -199,7 +199,6 @@ def write_index_html(summary: dict) -> None:
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="300">
 <title>Option B paper trade</title>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root {{
   --bg: #0f1115; --panel: #171a21; --ink: #e6e6e6; --muted: #9aa0a8; --grid: #2a2e37;
@@ -213,7 +212,15 @@ h1 {{ font-size: 1.3rem; }}
 .panel h2 {{ font-size: 0.95rem; color: var(--muted); margin: 0 0 0.6rem 0; font-weight: 600; }}
 .chart-box {{ position: relative; height: 260px; width: 100%; }}
 .chart-box.short {{ height: 180px; }}
-canvas {{ max-width: 100%; }}
+canvas {{ max-width: 100%; display: block; touch-action: pan-y; }}
+.legend {{ display: flex; flex-wrap: wrap; gap: 0.9rem; font-size: 0.8rem; color: var(--ink); margin-bottom: 0.5rem; }}
+.legend span {{ display: inline-flex; align-items: center; gap: 0.35rem; cursor: pointer; user-select: none; }}
+.legend .swatch {{ width: 14px; height: 0; border-top-width: 2px; border-top-style: solid; display: inline-block; }}
+.legend .off {{ opacity: 0.35; }}
+.tooltip {{ position: absolute; background: #20242c; border: 1px solid var(--grid); border-radius: 6px;
+           padding: 0.4rem 0.6rem; font-size: 0.78rem; pointer-events: none; white-space: nowrap;
+           transform: translate(-50%, -110%); display: none; z-index: 5; font-variant-numeric: tabular-nums; }}
+.tooltip .row {{ display: flex; gap: 0.5rem; justify-content: space-between; }}
 .jserr {{ color: #e07a7a; font-size: 0.85rem; white-space: pre-wrap; }}
 table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
 td, th {{ border: 1px solid #333; padding: 0.4rem 0.7rem; text-align: left; font-variant-numeric: tabular-nums; }}
@@ -227,11 +234,12 @@ pool's own on-chain state (price, liquidity, exact feeGrowthGlobal fee accountin
 
 <div class="panel">
   <h2>NAV, from $1 entry</h2>
-  <div class="chart-box"><canvas id="navChart"></canvas></div>
+  <div id="navLegend" class="legend"></div>
+  <div class="chart-box"><canvas id="navChart"></canvas><div id="navTooltip" class="tooltip"></div></div>
 </div>
 <div class="panel">
   <h2>Cumulative fees earned (USD, real feeGrowthGlobal accounting)</h2>
-  <div class="chart-box short"><canvas id="feeChart"></canvas></div>
+  <div class="chart-box short"><canvas id="feeChart"></canvas><div id="feeTooltip" class="tooltip"></div></div>
 </div>
 <div id="chartErr" class="jserr"></div>
 <p><a href="nav_chart.png">Static image (for sharing)</a> | <a href="nav_series.json">Raw series JSON</a></p>
@@ -252,67 +260,152 @@ Raw log: <a href="pool_state_log.csv">pool_state_log.csv</a> |
 JSON: <a href="nav_summary.json">nav_summary.json</a></p>
 
 <script>
-async function render() {{
-  if (typeof Chart === 'undefined') {{
-    document.getElementById('chartErr').textContent = 'Chart.js failed to load from the CDN (cdnjs.cloudflare.com) -- check network/ad-blocker. Falling back to the static image above.';
-    return;
+// Dependency-free: no CDN, no external library, no Intl/toLocaleString anywhere in this
+// file. A real iOS device threw "The string did not match the expected pattern" even
+// after every Intl call of MY OWN was removed -- the remaining suspect was Chart.js's own
+// internal tick/legend formatting, which likely still touches Intl somewhere. Removing the
+// library outright removes that whole class of risk, not just the part I could see.
+
+function toDate(s) {{
+  // Safari/WebKit's Date parser rejects ISO strings with >3 fractional-second digits
+  // (Python's isoformat() emits microseconds); Chrome tolerates it. Truncate first.
+  return new Date(s.replace(/\.(\d{{3}})\d*/, '.$1'));
+}}
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function fmtDate(d) {{
+  const h = d.getHours(), hh = String(((h + 11) % 12) + 1).padStart(2, '0');
+  const mm = String(d.getMinutes()).padStart(2, '0');
+  return MONTHS[d.getMonth()] + ' ' + d.getDate() + ', ' + hh + ':' + mm + ' ' + (h < 12 ? 'AM' : 'PM');
+}}
+function niceTicks(lo, hi, n) {{
+  if (lo === hi) {{ lo -= 1; hi += 1; }}
+  const span = hi - lo, rough = span / n;
+  const mag = Math.pow(10, Math.floor(Math.log(rough) / Math.LN10));
+  const norm = rough / mag;
+  const step = (norm < 1.5 ? 1 : norm < 3 ? 2 : norm < 7 ? 5 : 10) * mag;
+  const start = Math.ceil(lo / step) * step;
+  const out = [];
+  for (let v = start; v <= hi + step * 1e-9; v += step) out.push(v);
+  return out;
+}}
+
+// series: [{{label, color, dash:[..]|null, points:boolean, values:number[]}}], shared x labels.
+function drawChart(canvas, tooltipEl, legendEl, labels, series, yDecimals) {{
+  const box = canvas.parentElement;
+  const dpr = window.devicePixelRatio || 1;
+  const cssW = box.clientWidth, cssH = box.clientHeight;
+  canvas.width = Math.round(cssW * dpr);
+  canvas.height = Math.round(cssH * dpr);
+  canvas.style.width = cssW + 'px';
+  canvas.style.height = cssH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  ctx.clearRect(0, 0, cssW, cssH);
+
+  const css = getComputedStyle(document.documentElement);
+  const gridColor = css.getPropertyValue('--grid').trim();
+  const mutedColor = css.getPropertyValue('--muted').trim();
+
+  const active = series.filter(s => s.enabled !== false);
+  const allVals = active.flatMap(s => s.values).filter(v => Number.isFinite(v));
+  const vMin = Math.min(...allVals), vMax = Math.max(...allVals);
+  const pad = (vMax - vMin) * 0.1 || Math.abs(vMax) * 0.01 || 1;
+  const yLo = vMin - pad, yHi = vMax + pad;
+  const yTicks = niceTicks(yLo, yHi, 5);
+
+  const left = 58, right = 10, top = 10, bottom = 26;
+  const plotW = cssW - left - right, plotH = cssH - top - bottom;
+  const n = labels.length;
+  const xAt = i => left + (n <= 1 ? plotW / 2 : (plotW * i) / (n - 1));
+  const yAt = v => top + plotH - ((v - yLo) / (yHi - yLo)) * plotH;
+
+  ctx.strokeStyle = gridColor; ctx.lineWidth = 1; ctx.font = '11px -apple-system, sans-serif';
+  ctx.fillStyle = mutedColor; ctx.textBaseline = 'middle';
+  yTicks.forEach(v => {{
+    const y = yAt(v);
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(left + plotW, y); ctx.stroke();
+    ctx.textAlign = 'right';
+    ctx.fillText(v.toFixed(yDecimals), left - 8, y);
+  }});
+  const xTickEvery = Math.max(1, Math.ceil(n / 4));
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  for (let i = 0; i < n; i += xTickEvery) ctx.fillText(labels[i], xAt(i), top + plotH + 8);
+
+  active.forEach(s => {{
+    ctx.beginPath();
+    ctx.strokeStyle = s.color; ctx.lineWidth = 2;
+    ctx.setLineDash(s.dash || []);
+    s.values.forEach((v, i) => {{
+      const x = xAt(i), y = yAt(v);
+      if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+    }});
+    ctx.stroke();
+    ctx.setLineDash([]);
+    if (s.points) {{
+      ctx.fillStyle = s.color;
+      s.values.forEach((v, i) => {{
+        ctx.beginPath(); ctx.arc(xAt(i), yAt(v), 2.5, 0, 7); ctx.fill();
+      }});
+    }}
+  }});
+
+  if (legendEl && !legendEl.dataset.built) {{
+    legendEl.dataset.built = '1';
+    legendEl.innerHTML = '';
+    series.forEach((s, idx) => {{
+      const el = document.createElement('span');
+      el.innerHTML = '<span class="swatch" style="border-color:' + s.color + (s.dash ? ';border-top-style:dashed' : '') + '"></span>' + s.label;
+      el.addEventListener('click', () => {{
+        series[idx].enabled = series[idx].enabled === false ? true : false;
+        el.classList.toggle('off', series[idx].enabled === false);
+        drawChart(canvas, tooltipEl, legendEl, labels, series, yDecimals);
+      }});
+      legendEl.appendChild(el);
+    }});
   }}
+
+  if (tooltipEl && !canvas.dataset.hoverBound) {{
+    canvas.dataset.hoverBound = '1';
+    const showAt = (clientX, clientY) => {{
+      const rect = canvas.getBoundingClientRect();
+      const x = clientX - rect.left;
+      let idx = Math.round(((x - left) / plotW) * (n - 1));
+      idx = Math.max(0, Math.min(n - 1, idx));
+      const rows = active.map(s => '<div class="row"><span style="color:' + s.color + '">' + s.label + '</span><span>' + s.values[idx].toFixed(yDecimals) + '</span></div>').join('');
+      tooltipEl.innerHTML = '<div>' + labels[idx] + '</div>' + rows;
+      tooltipEl.style.display = 'block';
+      tooltipEl.style.left = xAt(idx) + 'px';
+      tooltipEl.style.top = Math.min(...active.map(s => yAt(s.values[idx]))) + 'px';
+    }};
+    canvas.addEventListener('mousemove', e => showAt(e.clientX, e.clientY));
+    canvas.addEventListener('mouseleave', () => {{ tooltipEl.style.display = 'none'; }});
+    canvas.addEventListener('touchstart', e => {{ showAt(e.touches[0].clientX, e.touches[0].clientY); }}, {{ passive: true }});
+    canvas.addEventListener('touchmove', e => {{ showAt(e.touches[0].clientX, e.touches[0].clientY); }}, {{ passive: true }});
+  }}
+}}
+
+async function render() {{
   const rows = await (await fetch('nav_series.json?t=' + Date.now())).json();
+  const labels = rows.map(r => fmtDate(toDate(r.ts_utc)));
   const css = getComputedStyle(document.documentElement);
   const colors = {{
     nav: css.getPropertyValue('--nav').trim(), h5050: css.getPropertyValue('--h5050').trim(),
     hweth: css.getPropertyValue('--hweth').trim(), fees: css.getPropertyValue('--fees').trim(),
-    grid: css.getPropertyValue('--grid').trim(), ink: css.getPropertyValue('--ink').trim(),
-    muted: css.getPropertyValue('--muted').trim(),
   }};
-  // Safari/WebKit's Date parser rejects ISO strings with >3 fractional-second digits
-  // (Python's isoformat() emits microseconds) -- Chrome silently tolerates it, which is
-  // why this passed a Chromium-only check before. Truncate to milliseconds first.
-  const toDate = s => new Date(s.replace(/\.(\d{{3}})\d*/, '.$1'));
-  // Hand-format instead of toLocaleString/Intl: a real iOS device (Thai system locale)
-  // threw "The string did not match the expected pattern" here, which neither desktop
-  // WebKit nor a th-TH Playwright context reproduced -- an iOS-specific Intl/Buddhist-
-  // calendar quirk that couldn't be pinned down further from here. Removing all Intl
-  // calls removes the whole bug class rather than chasing the exact mechanism.
-  const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const fmt = d => {{
-    const h = d.getHours(), hh = String(((h + 11) % 12) + 1).padStart(2, '0');
-    const mm = String(d.getMinutes()).padStart(2, '0');
-    return `${{MONTHS[d.getMonth()]}} ${{d.getDate()}}, ${{hh}}:${{mm}} ${{h < 12 ? 'AM' : 'PM'}}`;
-  }};
-  const labels = rows.map(r => fmt(toDate(r.ts_utc)));
-  const common = {{
-    responsive: true,
-    maintainAspectRatio: false,
-    interaction: {{ mode: 'index', intersect: false }},
-    plugins: {{
-      legend: {{ labels: {{ color: colors.ink, usePointStyle: true }} }},
-      tooltip: {{ backgroundColor: '#20242c', borderColor: colors.grid, borderWidth: 1, titleColor: colors.ink, bodyColor: colors.ink }},
-    }},
-    scales: {{
-      x: {{ ticks: {{ color: colors.muted, maxRotation: 0, autoSkip: true }}, grid: {{ color: colors.grid }} }},
-      y: {{ ticks: {{ color: colors.muted }}, grid: {{ color: colors.grid }} }},
-    }},
-  }};
-  new Chart(document.getElementById('navChart'), {{
-    type: 'line',
-    data: {{
-      labels,
-      datasets: [
-        {{ label: 'Paper LP NAV', data: rows.map(r => r.nav), borderColor: colors.nav, backgroundColor: colors.nav, borderWidth: 2, pointRadius: 2, tension: 0.15 }},
-        {{ label: 'HODL 50/50', data: rows.map(r => r.hodl_5050), borderColor: colors.h5050, backgroundColor: colors.h5050, borderWidth: 1.5, borderDash: [6,3], pointRadius: 0, tension: 0.15 }},
-        {{ label: 'HODL 100% WETH', data: rows.map(r => r.hodl_weth), borderColor: colors.hweth, backgroundColor: colors.hweth, borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, tension: 0.15 }},
-      ],
-    }},
-    options: {{ ...common, scales: {{ ...common.scales, y: {{ ...common.scales.y, title: {{ display: true, text: 'NAV ($)', color: colors.muted }} }} }} }},
-  }});
-  new Chart(document.getElementById('feeChart'), {{
-    type: 'line',
-    data: {{ labels, datasets: [
-      {{ label: 'Cumulative fees (USD)', data: rows.map(r => r.cum_fees_usd), borderColor: colors.fees, backgroundColor: colors.fees, borderWidth: 2, pointRadius: 2, fill: false, tension: 0.15 }},
-    ] }},
-    options: common,
-  }});
+
+  const navCanvas = document.getElementById('navChart'), navTooltip = document.getElementById('navTooltip'), navLegend = document.getElementById('navLegend');
+  const navSeries = [
+    {{ label: 'Paper LP NAV', color: colors.nav, points: true, values: rows.map(r => r.nav) }},
+    {{ label: 'HODL 50/50', color: colors.h5050, dash: [6,3], values: rows.map(r => r.hodl_5050) }},
+    {{ label: 'HODL 100% WETH', color: colors.hweth, dash: [2,2], values: rows.map(r => r.hodl_weth) }},
+  ];
+  const feeCanvas = document.getElementById('feeChart'), feeTooltip = document.getElementById('feeTooltip');
+  const feeSeries = [{{ label: 'Cumulative fees (USD)', color: colors.fees, points: true, values: rows.map(r => r.cum_fees_usd) }}];
+
+  const redrawNav = () => drawChart(navCanvas, navTooltip, navLegend, labels, navSeries, 4);
+  const redrawFee = () => drawChart(feeCanvas, feeTooltip, null, labels, feeSeries, 8);
+  redrawNav(); redrawFee();
+  window.addEventListener('resize', () => {{ redrawNav(); redrawFee(); }});
 }}
 render().catch(e => {{ document.getElementById('chartErr').textContent = 'Chart render error: ' + e.message; }});
 </script>
