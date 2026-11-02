@@ -199,7 +199,7 @@ def write_index_html(summary: dict) -> None:
 <html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="refresh" content="300">
 <title>Option B paper trade</title>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
 <style>
 :root {{
   --bg: #0f1115; --panel: #171a21; --ink: #e6e6e6; --muted: #9aa0a8; --grid: #2a2e37;
@@ -211,7 +211,10 @@ h1 {{ font-size: 1.3rem; }}
 .warn {{ background: var(--warn-bg); border: 1px solid var(--warn-bd); padding: 0.6rem 1rem; border-radius: 6px; margin-bottom: 1rem; }}
 .panel {{ background: var(--panel); border-radius: 8px; padding: 1rem; margin-top: 1rem; }}
 .panel h2 {{ font-size: 0.95rem; color: var(--muted); margin: 0 0 0.6rem 0; font-weight: 600; }}
+.chart-box {{ position: relative; height: 260px; width: 100%; }}
+.chart-box.short {{ height: 180px; }}
 canvas {{ max-width: 100%; }}
+.jserr {{ color: #e07a7a; font-size: 0.85rem; white-space: pre-wrap; }}
 table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
 td, th {{ border: 1px solid #333; padding: 0.4rem 0.7rem; text-align: left; font-variant-numeric: tabular-nums; }}
 .muted {{ color: var(--muted); font-size: 0.85rem; }}
@@ -224,12 +227,13 @@ pool's own on-chain state (price, liquidity, exact feeGrowthGlobal fee accountin
 
 <div class="panel">
   <h2>NAV, from $1 entry</h2>
-  <canvas id="navChart" height="220"></canvas>
+  <div class="chart-box"><canvas id="navChart"></canvas></div>
 </div>
 <div class="panel">
   <h2>Cumulative fees earned (USD, real feeGrowthGlobal accounting)</h2>
-  <canvas id="feeChart" height="140"></canvas>
+  <div class="chart-box short"><canvas id="feeChart"></canvas></div>
 </div>
+<div id="chartErr" class="jserr"></div>
 <p><a href="nav_chart.png">Static image (for sharing)</a> | <a href="nav_series.json">Raw series JSON</a></p>
 
 <table>
@@ -249,6 +253,10 @@ JSON: <a href="nav_summary.json">nav_summary.json</a></p>
 
 <script>
 async function render() {{
+  if (typeof Chart === 'undefined') {{
+    document.getElementById('chartErr').textContent = 'Chart.js failed to load from the CDN (cdnjs.cloudflare.com) -- check network/ad-blocker. Falling back to the static image above.';
+    return;
+  }}
   const rows = await (await fetch('nav_series.json?t=' + Date.now())).json();
   const css = getComputedStyle(document.documentElement);
   const colors = {{
@@ -260,6 +268,7 @@ async function render() {{
   const labels = rows.map(r => new Date(r.ts_utc).toLocaleString(undefined, {{month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}}));
   const common = {{
     responsive: true,
+    maintainAspectRatio: false,
     interaction: {{ mode: 'index', intersect: false }},
     plugins: {{
       legend: {{ labels: {{ color: colors.ink, usePointStyle: true }} }},
@@ -290,7 +299,7 @@ async function render() {{
     options: common,
   }});
 }}
-render();
+render().catch(e => {{ document.getElementById('chartErr').textContent = 'Chart render error: ' + e.message; }});
 </script>
 </body></html>"""
     with open(os.path.join(HERE, "index.html"), "w", encoding="utf-8") as f:
