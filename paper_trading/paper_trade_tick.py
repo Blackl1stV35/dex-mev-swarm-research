@@ -38,6 +38,7 @@ POOL = "0x88e6A0c2dDD26FEEb64F039a2c41296FcB3f5640"
 HERE = os.path.dirname(os.path.abspath(__file__))
 LOG_CSV = os.path.join(HERE, "pool_state_log.csv")
 NAV_JSON = os.path.join(HERE, "nav_summary.json")
+NAV_SERIES_JSON = os.path.join(HERE, "nav_series.json")
 CHART_PNG = os.path.join(HERE, "nav_chart.png")
 
 SELECTORS = {
@@ -164,6 +165,12 @@ def recompute_nav() -> None:
     with open(NAV_JSON, "w", encoding="utf-8") as fh:
         json.dump(summary, fh, indent=2)
 
+    # full series, for the interactive client-side chart -- small (one row per ~10 min poll),
+    # safe to ship whole rather than paginating.
+    series = df[["ts_utc", "price_usd_per_weth", "nav", "hodl_5050", "hodl_weth", "cum_fees_usd"]].to_dict(orient="records")
+    with open(NAV_SERIES_JSON, "w", encoding="utf-8") as fh:
+        json.dump(series, fh)
+
     if len(df) >= 2:
         t = pd.to_datetime(df["ts_utc"])
         fig, (ax1, ax2) = plt.subplots(2, 1, figsize=(10, 7), sharex=True, gridspec_kw={"height_ratios": [2, 1]})
@@ -189,24 +196,42 @@ def recompute_nav() -> None:
 
 def write_index_html(summary: dict) -> None:
     html = f"""<!doctype html>
-<html><head><meta charset="utf-8"><meta http-equiv="refresh" content="300">
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="300">
 <title>Option B paper trade</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.4/chart.umd.min.js"></script>
 <style>
-body {{ font-family: -apple-system, Segoe UI, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem;
-       background: #0f1115; color: #e6e6e6; }}
+:root {{
+  --bg: #0f1115; --panel: #171a21; --ink: #e6e6e6; --muted: #9aa0a8; --grid: #2a2e37;
+  --nav: #5b9bd5; --h5050: #e0a458; --hweth: #7ab06c; --fees: #b07ad6; --warn-bg: #3a2a0f; --warn-bd: #8a5a1a;
+}}
+body {{ font-family: -apple-system, "Segoe UI", sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem;
+       background: var(--bg); color: var(--ink); }}
 h1 {{ font-size: 1.3rem; }}
-.warn {{ background: #4a2f0a; border: 1px solid #8a5a1a; padding: 0.6rem 1rem; border-radius: 6px; margin-bottom: 1rem; }}
+.warn {{ background: var(--warn-bg); border: 1px solid var(--warn-bd); padding: 0.6rem 1rem; border-radius: 6px; margin-bottom: 1rem; }}
+.panel {{ background: var(--panel); border-radius: 8px; padding: 1rem; margin-top: 1rem; }}
+.panel h2 {{ font-size: 0.95rem; color: var(--muted); margin: 0 0 0.6rem 0; font-weight: 600; }}
+canvas {{ max-width: 100%; }}
 table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
 td, th {{ border: 1px solid #333; padding: 0.4rem 0.7rem; text-align: left; font-variant-numeric: tabular-nums; }}
-img {{ max-width: 100%; border-radius: 6px; margin-top: 1rem; }}
-.muted {{ color: #999; font-size: 0.85rem; }}
+.muted {{ color: var(--muted); font-size: 0.85rem; }}
+a {{ color: var(--nav); }}
 </style></head><body>
 <h1>Option B -- Uniswap v3 USDC/WETH 0.05% paper trade</h1>
 <div class="warn"><b>PAPER TRADE ONLY.</b> No real funds, no on-chain position actually opened.
 Simulated $1 full-range LP position tracked forward from the first poll, using the real live
 pool's own on-chain state (price, liquidity, exact feeGrowthGlobal fee accounting).</div>
-<p><a href="nav_chart.png">Quick view (chart image only)</a></p>
-<img src="nav_chart.png" alt="NAV chart">
+
+<div class="panel">
+  <h2>NAV, from $1 entry</h2>
+  <canvas id="navChart" height="220"></canvas>
+</div>
+<div class="panel">
+  <h2>Cumulative fees earned (USD, real feeGrowthGlobal accounting)</h2>
+  <canvas id="feeChart" height="140"></canvas>
+</div>
+<p><a href="nav_chart.png">Static image (for sharing)</a> | <a href="nav_series.json">Raw series JSON</a></p>
+
 <table>
 <tr><th>Entry time (UTC)</th><td>{summary['entry_ts_utc']}</td></tr>
 <tr><th>Latest poll (UTC)</th><td>{summary['latest_ts_utc']}</td></tr>
@@ -221,6 +246,52 @@ pool's own on-chain state (price, liquidity, exact feeGrowthGlobal fee accountin
 <p class="muted">Updates every ~10 min via a Windows Scheduled Task (DexMevSwarm_PaperTrade_OptionB).
 Raw log: <a href="pool_state_log.csv">pool_state_log.csv</a> |
 JSON: <a href="nav_summary.json">nav_summary.json</a></p>
+
+<script>
+async function render() {{
+  const rows = await (await fetch('nav_series.json?t=' + Date.now())).json();
+  const css = getComputedStyle(document.documentElement);
+  const colors = {{
+    nav: css.getPropertyValue('--nav').trim(), h5050: css.getPropertyValue('--h5050').trim(),
+    hweth: css.getPropertyValue('--hweth').trim(), fees: css.getPropertyValue('--fees').trim(),
+    grid: css.getPropertyValue('--grid').trim(), ink: css.getPropertyValue('--ink').trim(),
+    muted: css.getPropertyValue('--muted').trim(),
+  }};
+  const labels = rows.map(r => new Date(r.ts_utc).toLocaleString(undefined, {{month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'}}));
+  const common = {{
+    responsive: true,
+    interaction: {{ mode: 'index', intersect: false }},
+    plugins: {{
+      legend: {{ labels: {{ color: colors.ink, usePointStyle: true }} }},
+      tooltip: {{ backgroundColor: '#20242c', borderColor: colors.grid, borderWidth: 1, titleColor: colors.ink, bodyColor: colors.ink }},
+    }},
+    scales: {{
+      x: {{ ticks: {{ color: colors.muted, maxRotation: 0, autoSkip: true }}, grid: {{ color: colors.grid }} }},
+      y: {{ ticks: {{ color: colors.muted }}, grid: {{ color: colors.grid }} }},
+    }},
+  }};
+  new Chart(document.getElementById('navChart'), {{
+    type: 'line',
+    data: {{
+      labels,
+      datasets: [
+        {{ label: 'Paper LP NAV', data: rows.map(r => r.nav), borderColor: colors.nav, backgroundColor: colors.nav, borderWidth: 2, pointRadius: 2, tension: 0.15 }},
+        {{ label: 'HODL 50/50', data: rows.map(r => r.hodl_5050), borderColor: colors.h5050, backgroundColor: colors.h5050, borderWidth: 1.5, borderDash: [6,3], pointRadius: 0, tension: 0.15 }},
+        {{ label: 'HODL 100% WETH', data: rows.map(r => r.hodl_weth), borderColor: colors.hweth, backgroundColor: colors.hweth, borderWidth: 1.5, borderDash: [2,2], pointRadius: 0, tension: 0.15 }},
+      ],
+    }},
+    options: {{ ...common, scales: {{ ...common.scales, y: {{ ...common.scales.y, title: {{ display: true, text: 'NAV ($)', color: colors.muted }} }} }} }},
+  }});
+  new Chart(document.getElementById('feeChart'), {{
+    type: 'line',
+    data: {{ labels, datasets: [
+      {{ label: 'Cumulative fees (USD)', data: rows.map(r => r.cum_fees_usd), borderColor: colors.fees, backgroundColor: colors.fees, borderWidth: 2, pointRadius: 2, fill: false, tension: 0.15 }},
+    ] }},
+    options: common,
+  }});
+}}
+render();
+</script>
 </body></html>"""
     with open(os.path.join(HERE, "index.html"), "w", encoding="utf-8") as f:
         f.write(html)
