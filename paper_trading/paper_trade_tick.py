@@ -184,6 +184,46 @@ def recompute_nav() -> None:
         plt.close(fig)
 
     print(f"NAV: ${last['nav']:.6f}  (fees ${last['cum_fees_usd']:.6f})  n_polls={len(df)}")
+    write_index_html(summary)
+
+
+def write_index_html(summary: dict) -> None:
+    html = f"""<!doctype html>
+<html><head><meta charset="utf-8"><meta http-equiv="refresh" content="300">
+<title>Option B paper trade</title>
+<style>
+body {{ font-family: -apple-system, Segoe UI, sans-serif; max-width: 900px; margin: 2rem auto; padding: 0 1rem;
+       background: #0f1115; color: #e6e6e6; }}
+h1 {{ font-size: 1.3rem; }}
+.warn {{ background: #4a2f0a; border: 1px solid #8a5a1a; padding: 0.6rem 1rem; border-radius: 6px; margin-bottom: 1rem; }}
+table {{ border-collapse: collapse; width: 100%; margin-top: 1rem; }}
+td, th {{ border: 1px solid #333; padding: 0.4rem 0.7rem; text-align: left; font-variant-numeric: tabular-nums; }}
+img {{ max-width: 100%; border-radius: 6px; margin-top: 1rem; }}
+.muted {{ color: #999; font-size: 0.85rem; }}
+</style></head><body>
+<h1>Option B -- Uniswap v3 USDC/WETH 0.05% paper trade</h1>
+<div class="warn"><b>PAPER TRADE ONLY.</b> No real funds, no on-chain position actually opened.
+Simulated $1 full-range LP position tracked forward from the first poll, using the real live
+pool's own on-chain state (price, liquidity, exact feeGrowthGlobal fee accounting).</div>
+<p><a href="nav_chart.png">Quick view (chart image only)</a></p>
+<img src="nav_chart.png" alt="NAV chart">
+<table>
+<tr><th>Entry time (UTC)</th><td>{summary['entry_ts_utc']}</td></tr>
+<tr><th>Latest poll (UTC)</th><td>{summary['latest_ts_utc']}</td></tr>
+<tr><th># polls</th><td>{summary['n_polls']}</td></tr>
+<tr><th>Entry price</th><td>${summary['entry_price_usd']:,.2f}</td></tr>
+<tr><th>Latest price</th><td>${summary['latest_price_usd']:,.2f}</td></tr>
+<tr><th>Paper LP NAV</th><td>${summary['nav']:.6f}</td></tr>
+<tr><th>Cumulative fees</th><td>${summary['cum_fees_usd']:.6f}</td></tr>
+<tr><th>HODL 50/50</th><td>${summary['hodl_5050']:.6f}</td></tr>
+<tr><th>HODL 100% WETH</th><td>${summary['hodl_weth']:.6f}</td></tr>
+</table>
+<p class="muted">Updates every ~10 min via a Windows Scheduled Task (DexMevSwarm_PaperTrade_OptionB).
+Raw log: <a href="pool_state_log.csv">pool_state_log.csv</a> |
+JSON: <a href="nav_summary.json">nav_summary.json</a></p>
+</body></html>"""
+    with open(os.path.join(HERE, "index.html"), "w", encoding="utf-8") as f:
+        f.write(html)
 
 
 if __name__ == "__main__":
